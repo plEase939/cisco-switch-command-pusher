@@ -44,7 +44,9 @@ def concurrent_back(ip):
             file.write(str(ip) + "\n")
             file.close()
             lock.release()
+        ssh.disconnect()
     except Exception as e:
+        ssh.disconnect()
         lock.acquire()
         with open("errors.txt", "a") as file:
             file.write(str(e) + "\n")
