@@ -8,3 +8,8 @@ Second open commands.txt and you may completely rewrite this file with your comm
 Third enter your list of IP addresses to ips.csv file. Make sure there are no extra spaces beside the IP address line.
 
 Thats it! now you may simply execute this program and the program will login to each switch concurrently and push commands.
+
+
+You are free to modify this script as per your need.
+
+You are solely responsible for the commands you push using this script. 
