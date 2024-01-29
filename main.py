@@ -1,29 +1,25 @@
-#Importing Dependencies
 from netmiko import ConnectHandler
 from threading import Thread, Lock
-import csv
-import time
+from ipaddress import ip_address
+from pathlib import Path
 
+lock = Lock()
 
-IPS =[]  #empty list
-lock = Lock() 
-execution = [] #empty list
+IPS = Path("ips.csv").read_text().splitlines()
+execution = Path("commands.txt").read_text().splitlines()
 
-#Open ips.csv and append each line to IPS list
-with open("ips.csv") as csvfile:
-    reader = csv.reader(csvfile)
-    for row in reader:
-        IPS.append(row[0])
-
-#print List and read and append commands from commands.txt commands will be directly enter to config t, enter first line as exit if you don't want to start with config t
-print(IPS)
-with open("commands.txt", "r") as file:
-    reader = file.readlines()
-    for row in reader:
-        execution.append(row.splitlines()[0])
+def is_valid_ip(ip):
+    try:
+        ip_address(ip)
+        return True
+    except ValueError:
+        return False
 
 def concurrent_back(ip):
     try:
+        if not is_valid_ip(ip):
+            raise ValueError(f"{ip} is not a valid IP address")
+
         switch_login = {
             'device_type': "cisco_ios",
             'host': str(ip),
@@ -31,31 +27,20 @@ def concurrent_back(ip):
             'password': "changeme",
             'secret': "changeme",
             'banner_timeout' : 60
-            }
+        }
         ssh = ConnectHandler(**switch_login)
         ssh.enable()
         output = ssh.send_config_set(execution)
-        with open("output.txt", "a+") as file:
-            file.write(ip + "\n" + output + "\n")
-            file.close()
+        with open("output.txt", "a") as file:
+            file.write(f"{ip}\n{output}\n")
         print(output)
-        with open("success.txt", "a") as file:
-            lock.acquire()
-            file.write(str(ip) + "\n")
-            file.close()
-            lock.release()
-        ssh.disconnect()
+        with lock, open("success.txt", "a") as file:
+            file.write(f"{ip}\n")
     except Exception as e:
-        ssh.disconnect()
-        lock.acquire()
-        with open("errors.txt", "a") as file:
-            file.write(str(e) + "\n")
-            file.close()
-        with open("failed_to_connect.txt", "a") as file:
-            file.write(str(ip) + "\n")
-            file.close()
-        lock.release()
-
+        with lock, open("errors.txt", "a") as file:
+            file.write(f"{e}\n")
+        with lock, open("failed_to_connect.txt", "a") as file:
+            file.write(f"{ip}\n")
 
 threads = []
 for ip in IPS:
@@ -63,6 +48,5 @@ for ip in IPS:
     t.start()
     threads.append(t)
 
-#Wait Pending Threads to complete their task. When all workers finish their task then program is terminated
 for t in threads:
     t.join()
